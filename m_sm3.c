@@ -50,14 +50,13 @@
  */
 
 #include <stdio.h>
-#include "cryptlib.h"
 
 #ifndef OPENSSL_NO_SM3
 
 #include <openssl/evp.h>
 #include <openssl/objects.h>
 #include <openssl/x509.h>
-#include <openssl/sm3.h>
+#include "sm3.h"
 
 
 static int init(EVP_MD_CTX *ctx)
@@ -76,8 +75,9 @@ static int final(EVP_MD_CTX *ctx, unsigned char *md)
 }
 
 static const EVP_MD sm3_md = {
-        NID_sm3,
-        NID_sm2sign_with_sm3,
+  /* note: */
+        NID_undef,                      /* TODO: undef??? works */
+        NID_undef,
         SM3_DIGEST_LENGTH,
         0,
         init,
@@ -85,9 +85,13 @@ static const EVP_MD sm3_md = {
         final,
         NULL,
         NULL,
-        EVP_PKEY_SM2_method,
+        /* note: https://wiki.openssl.org/index.php/Creating_an_OpenSSL_Engine_to_use_indigenous_ECDH_ECDSA_and_HASH_Algorithms#Digests */
+        EVP_PKEY_NULL_method,//{NID_undef, NID_undef, 0, 0, 0},
         SM3_BLOCK_SIZE,
-        sizeof(EVP_MD *) + sizeof(sm3_ctx_t),
+        sizeof(sm3_ctx_t),
+        NULL
+        /* SM3_BLOCK_SIZE, */
+        /* sizeof(EVP_MD *) + sizeof(sm3_ctx_t), */
 };
 
 const EVP_MD *EVP_sm3(void)

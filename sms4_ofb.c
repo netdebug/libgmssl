@@ -49,7 +49,7 @@
  *
  */
 
-#include <openssl/sms4.h>
+#include "sms4.h"
 #include <openssl/modes.h>
 
 
@@ -58,4 +58,3 @@ void sms4_ofb128_encrypt(const unsigned char *in, unsigned char *out,
 {
 	CRYPTO_ofb128_encrypt(in, out, len, key, iv, num, (block128_f)sms4_encrypt);
 }
-

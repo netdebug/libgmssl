@@ -1,1 +1,7 @@
 *.o
+
+# out
+sm4
+sm2
+gm
+libgmssl.so

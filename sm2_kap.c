@@ -50,7 +50,7 @@
  */
 
 #include <string.h>
-#include <openssl/kdf.h>
+#include "kdf.h"
 #include "sm2.h"
 
 int SM2_KAP_CTX_init(SM2_KAP_CTX *ctx, EC_KEY *ec_key,
@@ -58,7 +58,7 @@ int SM2_KAP_CTX_init(SM2_KAP_CTX *ctx, EC_KEY *ec_key,
 {
 	int ret = 0;
 	int w;
-	
+
 	memset(ctx, 0, sizeof(*ctx));
 
 	ctx->id_dgst_md = EVP_sm3();
@@ -90,7 +90,7 @@ int SM2_KAP_CTX_init(SM2_KAP_CTX *ctx, EC_KEY *ec_key,
 		SM2err(SM2_F_SM2_KAP_CTX_INIT, ERR_R_EC_LIB);
 		goto end;
 	}
-	
+
 	if (!SM2_compute_id_digest(ctx->id_dgst_md, ctx->remote_id_dgst,
 		&ctx->remote_id_dgstlen, remote_pubkey)) {
 		SM2err(SM2_F_SM2_KAP_CTX_INIT, 0);
@@ -312,7 +312,7 @@ int SM2_KAP_prepare(SM2_KAP_CTX *ctx, unsigned char *ephem_point,
 	 * w = ceil(keybits / 2) - 1
 	 * x = 2^w + (x and (2^w - 1)) = 2^w + (x mod 2^w)
 	 * t = (d + x * r) mod n
-	 * t = (h * t) mod n 
+	 * t = (h * t) mod n
 	 */
 
 	if (!ctx->t) {
@@ -352,7 +352,7 @@ int SM2_KAP_prepare(SM2_KAP_CTX *ctx, unsigned char *ephem_point,
 
 	/* encode R = (x, y) for output and local buffer */
 
-	// FIXME: ret is size_t and ret is the output length 
+	// FIXME: ret is size_t and ret is the output length
 	ret = EC_POINT_point2oct(ctx->group, ctx->point, ctx->point_form,
 		ephem_point, *ephem_point_len, ctx->bn_ctx);
 
@@ -383,7 +383,7 @@ int SM2_KAP_compute_key(SM2_KAP_CTX *ctx, const unsigned char *remote_point,
 	unsigned int len, bnlen;
 	size_t klen = keylen;
 
-	
+
 	EVP_MD_CTX_init(&md_ctx);
 
 	if (!(x = BN_new())) {
@@ -433,7 +433,7 @@ int SM2_KAP_compute_key(SM2_KAP_CTX *ctx, const unsigned char *remote_point,
 		SM2err(SM2_F_SM2_KAP_COMPUTE_KEY, ERR_R_BN_LIB);
 		goto end;
 	}
-	
+
 	/*
 	if (!BN_mod_mul(x, x, ctx->t, ctx->order, ctx->bn_ctx)) {
 		SM2err(SM2_F_SM2_KAP_COMPUTE_KEY, ERR_R_BN_LIB);
@@ -442,7 +442,7 @@ int SM2_KAP_compute_key(SM2_KAP_CTX *ctx, const unsigned char *remote_point,
 	*/
 
 	/* U = ht * (P + x * R), check U != O */
-	
+
 	if (!EC_POINT_mul(ctx->group, ctx->point, NULL, ctx->point, x, ctx->bn_ctx)) {
 		SM2err(SM2_F_SM2_KAP_COMPUTE_KEY, ERR_R_EC_LIB);
 		goto end;
@@ -547,7 +547,7 @@ int SM2_KAP_compute_key(SM2_KAP_CTX *ctx, const unsigned char *remote_point,
 				SM2err(SM2_F_SM2_KAP_COMPUTE_KEY, ERR_R_EVP_LIB);
 				goto end;
 			}
-		}	
+		}
 
 		if (!EVP_DigestFinal_ex(&md_ctx, dgst, &dgstlen)) {
 			SM2err(SM2_F_SM2_KAP_COMPUTE_KEY, ERR_R_EVP_LIB);
@@ -625,7 +625,7 @@ int SM2_KAP_compute_key(SM2_KAP_CTX *ctx, const unsigned char *remote_point,
 			*checksumlen = len;
 
 		} else {
-			if (!EVP_DigestFinal_ex(&md_ctx, ctx->checksum, &len)) {	
+			if (!EVP_DigestFinal_ex(&md_ctx, ctx->checksum, &len)) {
 				SM2err(SM2_F_SM2_KAP_COMPUTE_KEY, ERR_R_EVP_LIB);
 				goto end;
 			}
@@ -661,4 +661,3 @@ int SM2_KAP_final_check(SM2_KAP_CTX *ctx, const unsigned char *checksum,
 
 	return 1;
 }
-

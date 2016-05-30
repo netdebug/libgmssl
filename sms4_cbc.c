@@ -49,7 +49,7 @@
  *
  */
 
-#include <openssl/sms4.h>
+#include "sms4.h"
 #include <openssl/modes.h>
 
 void sms4_cbc_encrypt(const unsigned char *in, unsigned char *out,
@@ -59,4 +59,3 @@ void sms4_cbc_encrypt(const unsigned char *in, unsigned char *out,
 		CRYPTO_cbc128_encrypt(in, out, len, key, iv, (block128_f)sms4_encrypt);
 	else	CRYPTO_cbc128_decrypt(in, out, len, key, iv, (block128_f)sms4_encrypt);
 }
-

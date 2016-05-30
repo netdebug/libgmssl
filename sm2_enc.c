@@ -58,7 +58,7 @@
 #include <openssl/ec.h>
 #include <openssl/ecdsa.h>
 #include <openssl/rand.h>
-#include <openssl/kdf.h>
+#include "kdf.h"
 #include "sm2.h"
 
 int SM2_CIPHERTEXT_VALUE_size(const EC_GROUP *ec_group,
@@ -74,7 +74,7 @@ int SM2_CIPHERTEXT_VALUE_size(const EC_GROUP *ec_group,
 		goto end;
 	}
 
-#if 0	
+#if 0
 	//FIXME: len will be 1 !!!
 	if (!(len = EC_POINT_point2oct(ec_group, point, point_form,
 		NULL, 0, bn_ctx))) {
@@ -267,7 +267,7 @@ int SM2_encrypt_ex(const EVP_MD *kdf_md, const EVP_MD *mac_md,
 	if (!SM2_CIPHERTEXT_VALUE_encode(cv, ec_group, point_form, out, outlen)) {
 		goto end;
 	}
-	
+
 	ret = 1;
 end:
 	if (cv) SM2_CIPHERTEXT_VALUE_free(cv);
@@ -348,12 +348,12 @@ SM2_CIPHERTEXT_VALUE *SM2_do_encrypt(const EVP_MD *kdf_md, const EVP_MD *mac_md,
 			BN_rand_range(k, n);
 		} while (BN_is_zero(k));
 
-	
+
 		/* A2: C1 = [k]G = (x1, y1) */
 		if (!EC_POINT_mul(ec_group, cv->ephem_point, k, NULL, NULL, bn_ctx)) {
 			goto end;
 		}
-		
+
 		/* A3: check [h]P_B != O */
 		if (!EC_POINT_mul(ec_group, point, NULL, pub_key, h, bn_ctx)) {
 			goto end;
@@ -371,7 +371,7 @@ SM2_CIPHERTEXT_VALUE *SM2_do_encrypt(const EVP_MD *kdf_md, const EVP_MD *mac_md,
 			goto end;
 		}
 		OPENSSL_assert(len == nbytes * 2 + 1);
-		
+
 		/* A5: t = KDF(x2 || y2, klen) */
 		kdf(buf + 1, len - 1, cv->ciphertext, &cv->ciphertext_size);
 
@@ -393,7 +393,7 @@ SM2_CIPHERTEXT_VALUE *SM2_do_encrypt(const EVP_MD *kdf_md, const EVP_MD *mac_md,
 	for (i = 0; i < inlen; i++) {
 		cv->ciphertext[i] ^= in[i];
 	}
-	
+
 	/* A7: C3 = Hash(x2 || M || y2) */
 	if (!EVP_DigestInit_ex(md_ctx, mac_md, NULL)) {
 		goto end;
@@ -519,7 +519,7 @@ int SM2_do_decrypt(const EVP_MD *kdf_md, const EVP_MD *mac_md,
 	if (!point || !n || !h || !bn_ctx || !md_ctx) {
 		goto end;
 	}
-	
+
 	/* init ec domain parameters */
 	if (!EC_GROUP_get_order(ec_group, n, bn_ctx)) {
 		goto end;
@@ -545,7 +545,7 @@ int SM2_do_decrypt(const EVP_MD *kdf_md, const EVP_MD *mac_md,
 		goto end;
 	}
 
-	/* B3: compute ECDH [d]C1 = (x2, y2) */	
+	/* B3: compute ECDH [d]C1 = (x2, y2) */
 	if (!EC_POINT_mul(ec_group, point, NULL, cv->ephem_point, pri_key, bn_ctx)) {
 		goto end;
 	}
@@ -591,7 +591,7 @@ int SM2_do_decrypt(const EVP_MD *kdf_md, const EVP_MD *mac_md,
 	ret = 1;
 end:
 	if (point) EC_POINT_free(point);
-	if (n) BN_free(n);	
+	if (n) BN_free(n);
 	if (h) BN_free(h);
 	if (bn_ctx) BN_CTX_free(bn_ctx);
 	if (md_ctx) EVP_MD_CTX_destroy(md_ctx);
@@ -606,7 +606,7 @@ int SM2_encrypt(const unsigned char *in, size_t inlen,
 	const EVP_MD *kdf_md = EVP_sm3();
 	const EVP_MD *mac_md = EVP_sm3();
 	point_conversion_form_t point_form = SM2_DEFAULT_POINT_CONVERSION_FORM;
-	
+
 	return SM2_encrypt_ex(kdf_md, mac_md, point_form,
 		in, inlen, out, outlen, ec_key);
 }
@@ -619,6 +619,5 @@ int SM2_decrypt(const unsigned char *in, size_t inlen,
 	point_conversion_form_t point_form = SM2_DEFAULT_POINT_CONVERSION_FORM;
 
 	return SM2_decrypt_ex(kdf_md, mac_md, point_form,
-		in, inlen, out, outlen, ec_key);	
+		in, inlen, out, outlen, ec_key);
 }
-

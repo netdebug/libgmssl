@@ -51,7 +51,9 @@
 
 
 #include "sm3.h"
-#include "../byteorder.h"
+// note: replace cpu_to_be32 with htonl. is it OK?
+//#include "../byteorder.h"
+#include <arpa/inet.h>
 #include <string.h>
 
 
@@ -65,7 +67,7 @@ int sm3_init(sm3_ctx_t *ctx)
 	ctx->digest[5] = 0x163138AA;
 	ctx->digest[6] = 0xE38DEE4D;
 	ctx->digest[7] = 0xB0FB0E4E;
-	
+
 	ctx->nblocks = 0;
 	ctx->num = 0;
         if(ctx == NULL) return 0;
@@ -108,9 +110,9 @@ int sm3_final(sm3_ctx_t *ctx, unsigned char *digest)
 	int i;
 	uint32_t *pdigest = (uint32_t *)digest;
 	uint32_t *count = (uint32_t *)(ctx->block + SM3_BLOCK_SIZE - 8);
-		
+
 	ctx->block[ctx->num] = 0x80;
-	
+
 	if (ctx->num + 9 <= SM3_BLOCK_SIZE) {
 		memset(ctx->block + ctx->num + 1, 0, SM3_BLOCK_SIZE - ctx->num - 9);
 	} else {
@@ -119,25 +121,25 @@ int sm3_final(sm3_ctx_t *ctx, unsigned char *digest)
 		memset(ctx->block, 0, SM3_BLOCK_SIZE - 8);
 	}
 
-	count[0] = cpu_to_be32((ctx->nblocks) >> 23);
-	count[1] = cpu_to_be32((ctx->nblocks << 9) + (ctx->num << 3));
-	
+	count[0] =htonl((ctx->nblocks) >> 23);
+	count[1] =htonl((ctx->nblocks << 9) + (ctx->num << 3));
+
 	sm3_compress(ctx->digest, ctx->block);
 	for (i = 0; i < sizeof(ctx->digest)/sizeof(ctx->digest[0]); i++) {
-		pdigest[i] = cpu_to_be32(ctx->digest[i]);
+		pdigest[i] =htonl(ctx->digest[i]);
 	}
         return 1;
 }
 
 #define ROTATELEFT(X,n)  (((X)<<(n)) | ((X)>>(32-(n))))
 
-#define P0(x) ((x) ^  ROTATELEFT((x),9)  ^ ROTATELEFT((x),17)) 
-#define P1(x) ((x) ^  ROTATELEFT((x),15) ^ ROTATELEFT((x),23)) 
+#define P0(x) ((x) ^  ROTATELEFT((x),9)  ^ ROTATELEFT((x),17))
+#define P1(x) ((x) ^  ROTATELEFT((x),15) ^ ROTATELEFT((x),23))
 
-#define FF0(x,y,z) ( (x) ^ (y) ^ (z)) 
+#define FF0(x,y,z) ( (x) ^ (y) ^ (z))
 #define FF1(x,y,z) (((x) & (y)) | ( (x) & (z)) | ( (y) & (z)))
 
-#define GG0(x,y,z) ( (x) ^ (y) ^ (z)) 
+#define GG0(x,y,z) ( (x) ^ (y) ^ (z))
 #define GG1(x,y,z) (((x) & (y)) | ( (~(x)) & (z)) )
 
 
@@ -146,7 +148,7 @@ void sm3_compress(uint32_t digest[8], const unsigned char block[64])
 	int j;
 	uint32_t W[68], W1[64];
 	const uint32_t *pblock = (const uint32_t *)block;
-	
+
 	uint32_t A = digest[0];
 	uint32_t B = digest[1];
 	uint32_t C = digest[2];
@@ -158,7 +160,7 @@ void sm3_compress(uint32_t digest[8], const unsigned char block[64])
 	uint32_t SS1,SS2,TT1,TT2,T[64];
 
 	for (j = 0; j < 16; j++) {
-		W[j] = cpu_to_be32(pblock[j]);
+		W[j] =htonl(pblock[j]);
 	}
 	for (j = 16; j < 68; j++) {
 		W[j] = P1( W[j-16] ^ W[j-9] ^ ROTATELEFT(W[j-3],15)) ^ ROTATELEFT(W[j - 13],7 ) ^ W[j-6];;
@@ -170,7 +172,7 @@ void sm3_compress(uint32_t digest[8], const unsigned char block[64])
 	for(j =0; j < 16; j++) {
 
 		T[j] = 0x79CC4519;
-		SS1 = ROTATELEFT((ROTATELEFT(A,12) + E + ROTATELEFT(T[j],j)), 7); 
+		SS1 = ROTATELEFT((ROTATELEFT(A,12) + E + ROTATELEFT(T[j],j)), 7);
 		SS2 = SS1 ^ ROTATELEFT(A,12);
 		TT1 = FF0(A,B,C) + D + SS2 + W1[j];
 		TT2 = GG0(E,F,G) + H + SS1 + W[j];
@@ -187,7 +189,7 @@ void sm3_compress(uint32_t digest[8], const unsigned char block[64])
 	for(j =16; j < 64; j++) {
 
 		T[j] = 0x7A879D8A;
-		SS1 = ROTATELEFT((ROTATELEFT(A,12) + E + ROTATELEFT(T[j],j)), 7); 
+		SS1 = ROTATELEFT((ROTATELEFT(A,12) + E + ROTATELEFT(T[j],j)), 7);
 		SS2 = SS1 ^ ROTATELEFT(A,12);
 		TT1 = FF1(A,B,C) + D + SS2 + W1[j];
 		TT2 = GG1(E,F,G) + H + SS1 + W[j];

@@ -49,8 +49,8 @@
  *
  */
 
-#include "cryptlib.h"
-#include <openssl/sms4.h>
+//#include "cryptlib.h"
+#include "sms4.h"
 #include <openssl/modes.h>
 
 
@@ -65,4 +65,3 @@ int sms4_unwrap_key(sms4_key_t *key, const unsigned char *iv,
 {
 	return CRYPTO_128_unwrap(key, iv, out, in, inlen, (block128_f)sms4_encrypt);
 }
-

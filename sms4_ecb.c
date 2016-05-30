@@ -50,7 +50,7 @@
  */
 
 
-#include <openssl/sms4.h>
+#include "sms4.h"
 #include <openssl/modes.h>
 
 void sms4_ecb_encrypt(const unsigned char *in, unsigned char *out,
@@ -60,4 +60,3 @@ void sms4_ecb_encrypt(const unsigned char *in, unsigned char *out,
 		sms4_encrypt(in, out, key);
 	else	sms4_decrypt(in, out, key);
 }
-

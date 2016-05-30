@@ -60,7 +60,7 @@
 #include <openssl/err.h>
 #include <openssl/evp.h>
 #include <openssl/rand.h>
-#include <openssl/sm2.h>
+#include "sm2.h"
 
 #define EC_MAX_NBYTES	((OPENSSL_ECC_MAX_FIELD_BITS + 7)/8)
 
@@ -174,7 +174,7 @@ int sm2_get_public_key_data(unsigned char *buf, EC_KEY *ec_key)
 		fprintf(stderr, "error: %s %d\n", __FILE__, __LINE__);
 		goto err;
 	}
-	//OPENSSL_assert(len == 32 * 2 + 1); 
+	//OPENSSL_assert(len == 32 * 2 + 1);
 	memcpy(buf, oct + 1, len - 1);
 	buf += len - 1;
 
@@ -188,7 +188,7 @@ int sm2_get_public_key_data(unsigned char *buf, EC_KEY *ec_key)
 		fprintf(stderr, "error: %s %d\n", __FILE__, __LINE__);
 		goto err;
 	}
-	//OPENSSL_assert(len == 32 * 2 + 1); 
+	//OPENSSL_assert(len == 32 * 2 + 1);
 	memcpy(buf, oct + 1, len - 1);
 	buf += len - 1;
 
@@ -213,7 +213,7 @@ int SM2_compute_id_digest(const EVP_MD *md, unsigned char *dgst,
 	unsigned char idbits[2];
 	int pkdatalen;
 	char *id;
-	
+
 	if ((pkdatalen = sm2_get_public_key_data(pkdata, ec_key)) < 0) {
 		fprintf(stderr, "error: %s %d\n", __FILE__, __LINE__);
 		goto err;
@@ -276,7 +276,7 @@ int SM2_compute_message_digest(const EVP_MD *id_md, const EVP_MD *msg_md,
 		goto err;
 	}
 
-	if (!SM2_compute_id_digest(id_md, buf, &len, ec_key)) {	
+	if (!SM2_compute_id_digest(id_md, buf, &len, ec_key)) {
 		goto err;
 	}
 
@@ -288,7 +288,7 @@ int SM2_compute_message_digest(const EVP_MD *id_md, const EVP_MD *msg_md,
 		goto err;
 	}
 
-	if (!EVP_DigestFinal_ex(&md_ctx, dgst, &dgstlen)) {
+	if (!EVP_DigestFinal_ex(&md_ctx, dgst, dgstlen)) {
 		goto err;
 	}
 
@@ -303,8 +303,7 @@ int SM2_digest(const void *msg, size_t msglen, unsigned char *dgst,
 {
 	const EVP_MD *id_md = EVP_sm3();
 	const EVP_MD *msg_md = EVP_sm3();
-	
+
 	return SM2_compute_message_digest(id_md, msg_md,
 		msg, msglen, dgst, dgstlen, ec_key);
 }
-

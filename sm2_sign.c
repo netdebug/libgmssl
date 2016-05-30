@@ -56,7 +56,7 @@
 #include <openssl/obj_mac.h>
 #include <openssl/bn.h>
 #include <openssl/rand.h>
-#include <openssl/sm2.h>
+#include "sm2.h"
 
 
 /* k in [1, n-1], (x, y) = kG */
@@ -85,7 +85,7 @@ static int sm2_sign_setup(EC_KEY *ec_key, BN_CTX *ctx_in, BIGNUM **kp, BIGNUM **
 		ctx = ctx_in;
 	}
 
-	k = BN_new();	
+	k = BN_new();
 	x = BN_new();
 	order = BN_new();
 	if (!k || !x || !order) {
@@ -97,18 +97,18 @@ static int sm2_sign_setup(EC_KEY *ec_key, BN_CTX *ctx_in, BIGNUM **kp, BIGNUM **
 		ECDSAerr(ECDSA_F_ECDSA_SIGN_SETUP, ERR_R_EC_LIB);
 		goto err;
 	}
-	
+
 	if ((point = EC_POINT_new(ec_group)) == NULL) {
 		ECDSAerr(ECDSA_F_ECDSA_SIGN_SETUP, ERR_R_EC_LIB);
 		goto err;
 	}
 
 	do {
-		/* get random k */	
+		/* get random k */
 		do {
 			if (!BN_rand_range(k, order)) {
 				ECDSAerr(ECDSA_F_ECDSA_SIGN_SETUP,
-					ECDSA_R_RANDOM_NUMBER_GENERATION_FAILED);	
+					ECDSA_R_RANDOM_NUMBER_GENERATION_FAILED);
 				goto err;
 			}
 
@@ -131,13 +131,13 @@ static int sm2_sign_setup(EC_KEY *ec_key, BN_CTX *ctx_in, BIGNUM **kp, BIGNUM **
 				goto err;
 			}
 		}
-		
+
 		//FIXME: do we need this?
 		if (!BN_nnmod(x, x, order, ctx)) {
 			ECDSAerr(ECDSA_F_ECDSA_SIGN_SETUP, ERR_R_BN_LIB);
 			goto err;
 		}
-	
+
 	} while (BN_is_zero(x));
 
 	/* clear old values if necessary */
@@ -188,8 +188,8 @@ static ECDSA_SIG *sm2_do_sign(const unsigned char *dgst, int dgst_len,
 	if (!(ret = ECDSA_SIG_new())) {
 		ECDSAerr(ECDSA_F_ECDSA_DO_SIGN, ERR_R_MALLOC_FAILURE);
 		return NULL;
-	}	
-	
+	}
+
 	ctx = BN_CTX_new();
 	order = BN_new();
 	e = BN_new();
@@ -239,7 +239,7 @@ static ECDSA_SIG *sm2_do_sign(const unsigned char *dgst, int dgst_len,
 		}
 
 
-		/* r = e + x (mod n) */	
+		/* r = e + x (mod n) */
 		if (!BN_mod_add(ret->r, ret->r, e, order, ctx)) {
 			ECDSAerr(ECDSA_F_ECDSA_DO_SIGN, ERR_R_BN_LIB);
 			goto err;
@@ -305,12 +305,12 @@ err:
 		ECDSA_SIG_free(ret);
 		ret = NULL;
 	}
-	if (k) BN_free(k);	
+	if (k) BN_free(k);
 	if (ctx) BN_CTX_free(ctx);
 	if (order) BN_free(order);
 	if (e) BN_free(e);
-	if (bn) BN_free(bn);	
-	
+	if (bn) BN_free(bn);
+
 	return ret;
 }
 
@@ -349,12 +349,12 @@ int sm2_do_verify(const unsigned char *dgst, int dgstlen,
 		goto err;
 	}
 
-	/* check r, s in [1, n-1] and r + s != 0 (mod n) */ 
+	/* check r, s in [1, n-1] and r + s != 0 (mod n) */
 	if (BN_is_zero(sig->r) ||
 		BN_is_negative(sig->r) ||
-		BN_ucmp(sig->r, order) >= 0 || 
+		BN_ucmp(sig->r, order) >= 0 ||
 		BN_is_zero(sig->s) ||
-		BN_is_negative(sig->s) || 
+		BN_is_negative(sig->s) ||
 		BN_ucmp(sig->s, order) >= 0) {
 
 		ECDSAerr(ECDSA_F_ECDSA_DO_VERIFY, ECDSA_R_BAD_SIGNATURE);
@@ -404,7 +404,7 @@ int sm2_do_verify(const unsigned char *dgst, int dgstlen,
 			ECDSAerr(ECDSA_F_ECDSA_DO_VERIFY, ERR_R_EC_LIB);
 			goto err;
 		}
-	} else /* NID_X9_62_characteristic_two_field */ { 
+	} else /* NID_X9_62_characteristic_two_field */ {
 		if (!EC_POINT_get_affine_coordinates_GF2m(ec_group, point, t, NULL, ctx)) {
 			ECDSAerr(ECDSA_F_ECDSA_DO_VERIFY, ERR_R_EC_LIB);
 			goto err;
@@ -513,4 +513,3 @@ err:
 	ECDSA_SIG_free(s);
 	return ret;
 }
-

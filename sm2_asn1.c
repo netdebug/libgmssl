@@ -55,7 +55,7 @@
 #include <openssl/asn1t.h>
 #include <openssl/objects.h>
 #include <openssl/obj_mac.h>
-#include <openssl/sm2.h>
+#include "sm2.h"
 
 /*
  * from GM/T 0009-2012
@@ -138,11 +138,10 @@ end:
 SM2_CIPHERTEXT_VALUE *d2i_SM2_CIPHERTEXT_VALUE(SM2_CIPHERTEXT_VALUE **c,
 	const unsigned char **in, long len)
 {
-	
+
 
 
 
 
 	return NULL;
 }
-
