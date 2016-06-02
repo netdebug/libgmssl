@@ -1,6 +1,6 @@
 SM2OBJ=sm2_lib.o sm2_asn1.o sm2_err.o sm2_sign.o sm2_enc.o sm2_kap.o kdf_x9_63.o
 SM3OBJ=sm3.o m_sm3.o
-SM4OBJ=sms4_cbc.o sms4_cfb.o sms4_ecb.o sms4_ofb.o sms4_ctr.o sms4_wrap.o sms4.o
+SM4OBJ=sms4_cbc.o sms4_cfb.o sms4_ecb.o sms4_ofb.o sms4_ctr.o sms4_wrap.o sms4.o e_sms4.o
 TEST=gm sm2 sm4
 ALL=libgmssl.so $(TEST)
 
