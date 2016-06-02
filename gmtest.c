@@ -27,6 +27,27 @@ static void ch2hex(char *dst, const unsigned char *src, int srclen)
     sprintf(&(dst[i * 2]), "%02x", src[i]);
 }
 
+static void checkhex(unsigned char *expect, int elen,
+		     unsigned char *result, int rlen) {
+     char *hex = (char *)malloc(rlen * 2);
+
+     if (elen != rlen * 2)
+ 	  goto fail;
+
+     ch2hex(hex, result, rlen);
+     if (memcmp(hex, expect, rlen*2) == 0) {
+	  printf("OK\n");
+	  free(hex);
+	  return;
+     }
+
+fail:
+     printf("FAILS\n");
+     printf("ret: %s\n", hex);
+     printf("exp: %s\n", expect);
+     free(hex);
+}
+
 #include "sm3.h"
 int testsm3(unsigned char *in, int ilen,
             unsigned char out[SM3_DIGEST_LENGTH])
@@ -62,40 +83,76 @@ int testsm3evp(unsigned char *in, int ilen,
 }
 
 #include "sms4.h"
+int testsm4evp(unsigned char *in, int ilen,
+	       unsigned char *out, int *olen,
+	       unsigned char *key) {
+     EVP_CIPHER_CTX ctx;
+     const EVP_CIPHER *cipher;
+     EVP_CIPHER_CTX_init(&ctx);
+
+     cipher = EVP_sms4_ecb();
+
+     if (!EVP_EncryptInit_ex(&ctx, cipher, NULL, key, NULL)) {
+	  printf("init err\n");
+	  return 0;
+     }
+     EVP_CIPHER_CTX_set_padding(&ctx, 0); /* 0 - no, 1 - pkcs5 */
+     if(!EVP_EncryptUpdate(&ctx, out, olen, in, ilen)) {
+	  printf("update err\n");
+	  return 0;
+     }
+     int i;
+     if(!EVP_EncryptFinal_ex(&ctx, out + *olen, &i)) {
+	  printf("final err\n");
+	  return 0;
+     }
+     *olen += i;
+     return 1;
+}
+int testsm4evpdec(unsigned char *in, int ilen,
+		  unsigned char *out, int *olen,
+		  unsigned char *key) {
+     EVP_CIPHER_CTX ctx;
+     const EVP_CIPHER *cipher;
+     EVP_CIPHER_CTX_init(&ctx);
+
+     cipher = EVP_sms4_ecb();
+
+     if (!EVP_DecryptInit_ex(&ctx, cipher, NULL, key, NULL)) {
+	  printf("init err\n");
+	  return 0;
+     }
+     EVP_CIPHER_CTX_set_padding(&ctx, 0); /* 0 - no, 1 - pkcs5 */
+     if(!EVP_DecryptUpdate(&ctx, out, olen, in, ilen)) {
+	  printf("update err\n");
+	  return 0;
+     }
+     int i;
+     if(!EVP_DecryptFinal_ex(&ctx, out + *olen, &i)) {
+	  printf("final err\n");
+	  return 0;
+     }
+     *olen += i;
+     return 1;
+}
 
 int main()
 {
   int i, ret;
   unsigned char out[1024];
-  char outhex[2048];
+  unsigned char outhex[2048];
   const char *expect;
 
 
   printf("--- sm3 ---   ");
   expect = "66c7f0f462eeedd9d1f2d46bdc10e4e24167c4875cf2f7a2297da02b8f4ba8e0";
-
   testsm3("abc", strlen("abc"), out);
-
-  ch2hex(outhex, out, SM3_DIGEST_LENGTH);
-  if (memcmp(outhex, expect, SM3_DIGEST_LENGTH*2) != 0) {
-    printf("FAILS\n");
-    printf("ret: %s\n", outhex);
-    printf("exp: %s\n", expect);
-  } else {
-    printf("OK\n");
-  }
+  checkhex(expect, strlen(expect), out, SM3_DIGEST_LENGTH);
 
   printf("--- sm3 evp ---   ");      /* OK */
   memset(out, 0, SM3_DIGEST_LENGTH);
   testsm3evp("abc", strlen("abc"), out);
-  ch2hex(outhex, out, SM3_DIGEST_LENGTH);
-  if (memcmp(outhex, expect, SM3_DIGEST_LENGTH*2) != 0) {
-    printf("FAILS\n");
-    printf("ret: %s\n", outhex);
-    printf("exp: %s\n", expect);
-  } else {
-    printf("OK\n");
-  }
+  checkhex(expect, strlen(expect), out, SM3_DIGEST_LENGTH);
 
 
   printf("--- sm4 ecb enc ---   ");
@@ -104,29 +161,26 @@ int main()
   sms4_key_t k;
   sms4_set_encrypt_key(&k, key);
   sms4_encrypt(key, out, &k);         /* key as in */
-  ch2hex(outhex, out, sizeof(key));
-  if (memcmp(outhex, expect, sizeof(key)*2) != 0) {
-    printf("FAILS\n");
-    printf("ret: %s\n", outhex);
-    printf("exp: %s\n", expect);
-  } else {
-    printf("OK\n");
-  }
+  checkhex(expect, strlen(expect), out, sizeof(key)); /* no padding */
 
   printf("--- sm4 ecb dec ---   ");
   expect="0123456789abcdeffedcba9876543210";
   unsigned char dec[16];
   sms4_set_decrypt_key(&k, key);
   sms4_decrypt(out, dec, &k);
-  // testsm4(key, SM4_ECB | SM4_DECRYPT, NULL, out, sizeof(key), dec);
-  ch2hex(outhex, dec, sizeof(key));
-  if (memcmp(outhex, expect, sizeof(key)*2) != 0) {
-    printf("FAILS\n");
-    printf("ret: %s\n", outhex);
-    printf("exp: %s\n", expect);
-  } else {
-    printf("OK\n");
-  }
+  checkhex(expect, strlen(expect), dec, sizeof(dec)); /* no padding */
+
+  printf("--- sm4 evp ecb enc ---   ");
+  expect = "681edf34d206965e86b3e94f536e4246";
+  int olen = sizeof(out);
+  testsm4evp(key, sizeof(key), out, &olen, key);
+  checkhex(expect, strlen(expect), out, olen); /* no padding */
+
+  printf("--- sm4 evp ecb dec ---   ");
+  expect="0123456789abcdeffedcba9876543210";
+  int declen = sizeof(dec);
+  testsm4evpdec(out, olen, dec, &declen, key);
+  checkhex(expect, strlen(expect), dec, declen); /* no padding */
 
   return 0;
 }

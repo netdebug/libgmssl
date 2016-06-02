@@ -135,7 +135,7 @@ static int cname##_cfb##cbits##_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out, 
                           key_len, iv_len, flags, init_key, cleanup, \
                           set_asn1, get_asn1, ctrl) \
 static const EVP_CIPHER cname##_##mode = { \
-        nid##_##nmode, block_size, key_len, iv_len, \
+        NID_undef, block_size, key_len, iv_len, \
         flags | EVP_CIPH_##MODE##_MODE, \
         init_key, \
         cname##_##mode##_cipher, \

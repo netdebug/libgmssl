@@ -11,7 +11,7 @@ all: $(ALL)
 # %.o: %.c
 #	gcc -c -fPIC -Wall -ggdb3 -o $@ $+ -I$(OPENSSL_ROOT)/include
 
-gm: gmtest.o libgm.so
+gm: gmtest.o libgmssl.so
 	gcc -o $@ $< -I$(OPENSSL_ROOT)/include -L$(OPENSSL_ROOT)/lib -lcrypto -ldl -L. -lgmssl
 
 sm4: sms4test.o

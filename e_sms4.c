@@ -51,7 +51,7 @@
 
 
 #include <stdio.h>
-#include "cryptlib.h"
+//#include "cryptlib.h"
 
 #ifndef OPENSSL_NO_GMSSL
 #include <openssl/evp.h>
@@ -59,7 +59,7 @@
 #include <openssl/crypto.h>
 #include "evp_locl.h"
 #include "modes_lcl.h"
-#include <openssl/sms4.h>
+#include "sms4.h"
 
 #define SMS4_IV_LENGTH	SMS4_BLOCK_SIZE
 
@@ -95,7 +95,7 @@ static int sms4_cfb1_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
 	const unsigned char *in, size_t len)
 {
 	EVP_SMS4_KEY *sms4_key = (EVP_SMS4_KEY *)ctx->cipher_data;
-	
+
 	if (ctx->flags & EVP_CIPH_FLAG_LENGTH_BITS) {
 		CRYPTO_cfb128_1_encrypt(in, out, len, &sms4_key->ks,
 			ctx->iv, &ctx->num, ctx->encrypt, (block128_f)sms4_encrypt);
@@ -117,7 +117,7 @@ static int sms4_cfb1_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
 }
 
 const EVP_CIPHER sms4_cfb1 = {
-	NID_sms4_cfb1,
+	NID_undef,
 	SMS4_BLOCK_SIZE,
 	SMS4_KEY_LENGTH,
 	SMS4_IV_LENGTH,
@@ -144,13 +144,13 @@ static int sms4_cfb8_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
 
 	CRYPTO_cfb128_8_encrypt(in, out, len, &sms4_key->ks,
 		ctx->iv, &ctx->num, ctx->encrypt, (block128_f)sms4_encrypt);
-	
+
 	return 1;
 }
 
 
 const EVP_CIPHER sms4_cfb8 = {
-	NID_sms4_cfb8,
+	NID_undef,
 	SMS4_BLOCK_SIZE,
 	SMS4_KEY_LENGTH,
 	SMS4_IV_LENGTH,
@@ -162,7 +162,7 @@ const EVP_CIPHER sms4_cfb8 = {
 	NULL,
 	NULL,
 	NULL,
-	NULL, 
+	NULL,
 };
 
 const EVP_CIPHER *EVP_sms4_cfb8(void)
@@ -185,7 +185,7 @@ static int sms4_ctr_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
 }
 
 const EVP_CIPHER sms4_ctr = {
-	NID_sms4_ctr,
+	NID_undef,
 	SMS4_BLOCK_SIZE,
 	SMS4_KEY_LENGTH,
 	SMS4_IV_LENGTH,
@@ -236,7 +236,7 @@ static int sms4_gcm_ctrl(EVP_CIPHER_CTX *ctx, int type, int arg, void *ptr)
 	case EVP_CTRL_COPY:
 	default:
 		return -1;
-	}	
+	}
 
 
 }
@@ -255,7 +255,7 @@ static int sms4_wrap_init_key(EVP_CIPHER_CTX *ctx, const unsigned char *key,
 	const unsigned char *iv, int enc)
 {
 	EVP_SMS4_WRAP_CTX *sms4_wrap = ctx->cipher_data;
-	
+
 	if (!iv && !key)
 		return 1;
 
@@ -324,7 +324,7 @@ static int sms4_wrap_do_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
 #define SMS4_WRAP_IV_LENGTH	8
 
  const EVP_CIPHER sms4_wrap = {
-	NID_sms4_wrap,
+	NID_undef,
 	SMS4_WRAP_BLOCK_SIZE,
 	SMS4_KEY_LENGTH,
 	SMS4_WRAP_IV_LENGTH,
@@ -337,7 +337,7 @@ static int sms4_wrap_do_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
 	NULL, /* get_asn1_parameters() */
 	NULL, /* ctrl() */
 	NULL  /* app_data */
-};	
+};
 
 const EVP_CIPHER *EVP_sms4_wrap(void)
 {
