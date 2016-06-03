@@ -77,6 +77,18 @@ extern "C" {
 #define SM2_DEFAULT_POINT_CONVERSION_FORM	POINT_CONVERSION_UNCOMPRESSED
 
 
+struct fake_ec_key_st {
+    int version;
+     void *group;/* EC_GROUP *group; */
+     void *pub_key;/* EC_POINT *pub_key; */
+    BIGNUM *priv_key;
+    unsigned int enc_flag;
+    point_conversion_form_t conv_form;
+    int references;
+    int flags;
+     void *method_data; /* EC_EXTRA_DATA *method_data; */
+} /* EC_KEY */ ;
+
 char *SM2_get0_id(EC_KEY *ec_key);
 int SM2_set_id(EC_KEY *ec_key, const char *id);
 int SM2_compute_id_digest(const EVP_MD *md, unsigned char *dgst,
@@ -206,7 +218,6 @@ void SM2_KAP_CTX_cleanup(SM2_KAP_CTX *ctx);
 
 void ERR_load_SM2_strings(void);
 
-const EVP_MD *EVP_sm3(void);
 
 /* Function codes. */
 #define SM2_F_SM2_SET_ID			100
