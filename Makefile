@@ -10,7 +10,13 @@ all: $(ALL)
 
 # %.o: %.c
 #	gcc -c -fPIC -Wall -ggdb3 -o $@ $+ -I$(OPENSSL_ROOT)/include
-
+OPENSSL_ROOT=$(HOME)/gxp/deps/openssl
+# #OPENSSL_ROOT=/usr
+# OPENSSL_ROOT=$(CODEBASELOCAL)
+test:gm sm2 sm4
+	LD_LIBRARY_PATH=.:$LD_LIBRARY_PATH ./gm
+	LD_LIBRARY_PATH=.:$LD_LIBRARY_PATH ./sm2
+	LD_LIBRARY_PATH=.:$LD_LIBRARY_PATH ./sm4
 gm: gmtest.o libgmssl.so
 	gcc -o $@ $< -I$(OPENSSL_ROOT)/include -L$(OPENSSL_ROOT)/lib -lcrypto -ldl -L. -lgmssl
 
@@ -21,7 +27,7 @@ sm2: sm2test.o
 	gcc -o $@ $+ -I$(OPENSSL_ROOT)/include -L$(OPENSSL_ROOT)/lib -lcrypto -ldl -L. -lgmssl
 
 libgmssl.so: $(SM2OBJ) $(SM3OBJ) $(SM4OBJ)
-	gcc -o $@ $+ -shared -I$(OPENSSL_ROOT)/include -L$(OPENSSL_ROOT)/lib -lcrypto
+	gcc -o $@ $+ -fPIC -shared -I$(OPENSSL_ROOT)/include -L$(OPENSSL_ROOT)/lib -lcrypto
 
 clean:
 	rm -rf $(ALL) *.o

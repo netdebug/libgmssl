@@ -52,6 +52,7 @@
 #include <string.h>
 #include "kdf.h"
 #include "sm2.h"
+#include "sm3.h"
 
 int SM2_KAP_CTX_init(SM2_KAP_CTX *ctx, EC_KEY *ec_key,
 	EC_KEY *remote_pubkey, int is_initiator, int do_checksum)

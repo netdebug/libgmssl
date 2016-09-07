@@ -96,7 +96,7 @@ static const EVP_MD sm3_md = {
 
 const EVP_MD *EVP_sm3(void)
 {
-        return &sm3_md;
+  return (&sm3_md);
 }
 
 #endif

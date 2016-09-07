@@ -60,6 +60,8 @@
 #include <openssl/err.h>
 #include <openssl/evp.h>
 #include <openssl/rand.h>
+
+#include "sm3.h"
 #include "sm2.h"
 
 #define EC_MAX_NBYTES	((OPENSSL_ECC_MAX_FIELD_BITS + 7)/8)

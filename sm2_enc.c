@@ -58,7 +58,9 @@
 #include <openssl/ec.h>
 #include <openssl/ecdsa.h>
 #include <openssl/rand.h>
+
 #include "kdf.h"
+#include "sm3.h"
 #include "sm2.h"
 
 int SM2_CIPHERTEXT_VALUE_size(const EC_GROUP *ec_group,
@@ -99,13 +101,15 @@ void SM2_CIPHERTEXT_VALUE_free(SM2_CIPHERTEXT_VALUE *cv)
 	OPENSSL_free(cv);
 }
 
-int SM2_CIPHERTEXT_VALUE_encode(const SM2_CIPHERTEXT_VALUE *cv,
-	const EC_GROUP *ec_group, point_conversion_form_t point_form,
-	unsigned char *buf, size_t *buflen)
+int SM2_CIPHERTEXT_VALUE_encode(
+    const SM2_CIPHERTEXT_VALUE *cv,
+    const EC_GROUP *ec_group, point_conversion_form_t point_form,
+    unsigned char *buf, size_t *buflen, int seq)
 {
 	int ret = 0;
 	BN_CTX *bn_ctx = BN_CTX_new();
 	size_t ptlen, cvlen;
+        int ptoff, cipheroff, mactagoff;
 
 	if (!bn_ctx) {
 		return 0;
@@ -126,14 +130,50 @@ int SM2_CIPHERTEXT_VALUE_encode(const SM2_CIPHERTEXT_VALUE *cv,
 		goto end;
 	}
 
+        switch (seq) {
+          case 123:
+            ptoff = 0;  /* c1 */
+            cipheroff = ptlen;  /* c2 */
+            mactagoff = ptlen + cv->ciphertext_size;  /* c3 */
+            break;
+          case 132:
+            ptoff = 0;
+            cipheroff = ptlen + cv->mactag_size;
+            mactagoff = ptlen;
+            break;
+          case 213:
+            ptoff = cv->ciphertext_size;
+            cipheroff = 0;
+            mactagoff = ptlen + cv->mactag_size;
+            break;
+          case 231:
+            ptoff = cv->ciphertext_size + cv->mactag_size;
+            cipheroff = 0;
+            mactagoff = cv->ciphertext_size;
+            break;
+          case 312:
+            ptoff = cv->mactag_size;
+            cipheroff = cv->mactag_size + ptlen;
+            mactagoff = 0;
+            break;
+          case 321:
+            ptoff = cv->mactag_size + cv->ciphertext_size;
+            cipheroff = cv->mactag_size;
+            mactagoff = 0;
+            break;
+          default:
+            /* error seq */
+            break;
+        }
+
 	if (!(ptlen = EC_POINT_point2oct(ec_group, cv->ephem_point,
-		point_form, buf, *buflen, bn_ctx))) {
+                                         point_form, buf+ptoff, *buflen-ptoff, bn_ctx))) {
 		goto end;
 	}
-	buf += ptlen;
-	memcpy(buf, cv->ciphertext, cv->ciphertext_size);
-	buf += cv->ciphertext_size;
-	memcpy(buf, cv->mactag, cv->mactag_size);
+	/* buf += ptlen; */                   /* 两次计算ptlen, 根据原代码逻辑, 肯定一致 */
+	memcpy(buf+cipheroff, cv->ciphertext, cv->ciphertext_size);
+	/* buf += cv->ciphertext_size; */
+	memcpy(buf+mactagoff, cv->mactag, cv->mactag_size);
 
 	*buflen = cvlen;
 	ret = 1;
@@ -142,15 +182,17 @@ end:
 	return ret;
 }
 
-SM2_CIPHERTEXT_VALUE *SM2_CIPHERTEXT_VALUE_decode(const EC_GROUP *ec_group,
-	point_conversion_form_t point_form, const EVP_MD *mac_md,
-	const unsigned char *buf, size_t buflen)
+SM2_CIPHERTEXT_VALUE *SM2_CIPHERTEXT_VALUE_decode(
+    const EC_GROUP *ec_group,
+    point_conversion_form_t point_form, const EVP_MD *mac_md,
+    const unsigned char *buf, size_t buflen, int seq)
 {
 	int ok = 0;
 	SM2_CIPHERTEXT_VALUE *ret = NULL;
 	BN_CTX *bn_ctx = BN_CTX_new();
 	int ptlen;
 	int fixlen;
+        int ptoff, cipheroff, mactagoff;
 
 	if (!bn_ctx) {
 		return NULL;
@@ -171,24 +213,63 @@ SM2_CIPHERTEXT_VALUE *SM2_CIPHERTEXT_VALUE_decode(const EC_GROUP *ec_group,
 		goto end;
 	}
 
-	ret->ephem_point = EC_POINT_new(ec_group);
+	ptlen = fixlen - EVP_MD_size(mac_md);
 	ret->ciphertext_size = buflen - fixlen;
+	ret->mactag_size = EVP_MD_size(mac_md);
+        switch (seq) {
+          case 123:
+            ptoff = 0;  /* c1 */
+            cipheroff = ptlen;  /* c2 */
+            mactagoff = ptlen + ret->ciphertext_size;  /* c3 */
+            break;
+          case 132:
+            ptoff = 0;
+            cipheroff = ptlen + ret->mactag_size;
+            mactagoff = ptlen;
+            break;
+          case 213:
+            ptoff = ret->ciphertext_size;
+            cipheroff = 0;
+            mactagoff = ptlen + ret->mactag_size;
+            break;
+          case 231:
+            ptoff = ret->ciphertext_size + ret->mactag_size;
+            cipheroff = 0;
+            mactagoff = ret->ciphertext_size;
+            break;
+          case 312:
+            ptoff = ret->mactag_size;
+            cipheroff = ret->mactag_size + ptlen;
+            mactagoff = 0;
+            break;
+          case 321:
+            ptoff = ret->mactag_size + ret->ciphertext_size;
+            cipheroff = ret->mactag_size;
+            mactagoff = 0;
+            break;
+          default:
+            /* error seq */
+            break;
+        }
+
+	ret->ephem_point = EC_POINT_new(ec_group);
 	ret->ciphertext = OPENSSL_malloc(ret->ciphertext_size);
 	if (!ret->ephem_point || !ret->ciphertext) {
 		fprintf(stderr, "%s %d\n", __FILE__, __LINE__);
 		goto end;
 	}
 
-	ptlen = fixlen - EVP_MD_size(mac_md);
-	if (!EC_POINT_oct2point(ec_group, ret->ephem_point, buf, ptlen, bn_ctx)) {
+        /* c1 */
+	if (!EC_POINT_oct2point(ec_group, ret->ephem_point, buf+ptoff, ptlen, bn_ctx)) {
 		fprintf(stderr, "%s %d\n", __FILE__, __LINE__);
 		ERR_print_errors_fp(stdout);
 		goto end;
 	}
 
-	memcpy(ret->ciphertext, buf + ptlen, ret->ciphertext_size);
-	ret->mactag_size = EVP_MD_size(mac_md);
-	memcpy(ret->mactag, buf + buflen - ret->mactag_size, ret->mactag_size);
+        /* c2 */
+	memcpy(ret->ciphertext, buf + cipheroff, ret->ciphertext_size);
+        /* c3 */
+	memcpy(ret->mactag, buf + mactagoff, ret->mactag_size);
 
 	ok = 1;
 
@@ -240,38 +321,39 @@ end:
 }
 
 int SM2_encrypt_ex(const EVP_MD *kdf_md, const EVP_MD *mac_md,
-	point_conversion_form_t point_form,
-	const unsigned char *in, size_t inlen,
-	unsigned char *out, size_t *outlen, EC_KEY *ec_key)
+                   point_conversion_form_t point_form,
+                   const unsigned char *in, size_t inlen,
+                   unsigned char *out, size_t *outlen, EC_KEY *ec_key,
+    int seq)
 {
-	int ret = 0;
-	const EC_GROUP *ec_group = EC_KEY_get0_group(ec_key);
-	SM2_CIPHERTEXT_VALUE *cv = NULL;
-	int len;
+    int ret = 0;
+    const EC_GROUP *ec_group = EC_KEY_get0_group(ec_key);
+    SM2_CIPHERTEXT_VALUE *cv = NULL;
+    int len;
 
-	if (!(len = SM2_CIPHERTEXT_VALUE_size(ec_group, point_form, inlen, mac_md))) {
-		goto end;
-	}
+    if (!(len = SM2_CIPHERTEXT_VALUE_size(ec_group, point_form, inlen, mac_md))) {
+        goto end;
+    }
 
-	if (!out) {
-		*outlen = (size_t)len;
-		return 1;
+    if (!out) {
+        *outlen = (size_t)len;
+        return 1;
 
-	} else if (*outlen < (size_t)len) {
-		return 0;
-	}
+    } else if (*outlen < (size_t)len) {
+        return 0;
+    }
 
-	if (!(cv = SM2_do_encrypt(kdf_md, mac_md, in, inlen, ec_key))) {
-		goto end;
-	}
-	if (!SM2_CIPHERTEXT_VALUE_encode(cv, ec_group, point_form, out, outlen)) {
-		goto end;
-	}
+    if (!(cv = SM2_do_encrypt(kdf_md, mac_md, in, inlen, ec_key))) {
+        goto end;
+    }
+    if (!SM2_CIPHERTEXT_VALUE_encode(cv, ec_group, point_form, out, outlen, seq)) {
+        goto end;
+    }
 
-	ret = 1;
+    ret = 1;
 end:
-	if (cv) SM2_CIPHERTEXT_VALUE_free(cv);
-	return ret;
+    if (cv) SM2_CIPHERTEXT_VALUE_free(cv);
+    return ret;
 }
 
 SM2_CIPHERTEXT_VALUE *SM2_do_encrypt(const EVP_MD *kdf_md, const EVP_MD *mac_md,
@@ -431,9 +513,9 @@ end:
 }
 
 int SM2_decrypt_ex(const EVP_MD *kdf_md, const EVP_MD *mac_md,
-	point_conversion_form_t point_form,
-	const unsigned char *in, size_t inlen,
-	unsigned char *out, size_t *outlen, EC_KEY *ec_key)
+                   point_conversion_form_t point_form,
+                   const unsigned char *in, size_t inlen,
+                   unsigned char *out, size_t *outlen, EC_KEY *ec_key, int seq)
 {
 	int ret = 0;
 	const EC_GROUP *ec_group = EC_KEY_get0_group(ec_key);
@@ -457,7 +539,7 @@ int SM2_decrypt_ex(const EVP_MD *kdf_md, const EVP_MD *mac_md,
 		return 0;
 	}
 
-	if (!(cv = SM2_CIPHERTEXT_VALUE_decode(ec_group, point_form, mac_md, in, inlen))) {
+	if (!(cv = SM2_CIPHERTEXT_VALUE_decode(ec_group, point_form, mac_md, in, inlen, seq))) {
 		fprintf(stderr, "%s %d\n", __FILE__, __LINE__);
 		goto end;
 	}
@@ -608,7 +690,7 @@ int SM2_encrypt(const unsigned char *in, size_t inlen,
 	point_conversion_form_t point_form = SM2_DEFAULT_POINT_CONVERSION_FORM;
 
 	return SM2_encrypt_ex(kdf_md, mac_md, point_form,
-		in, inlen, out, outlen, ec_key);
+                              in, inlen, out, outlen, ec_key, 123);
 }
 
 int SM2_decrypt(const unsigned char *in, size_t inlen,
@@ -619,5 +701,5 @@ int SM2_decrypt(const unsigned char *in, size_t inlen,
 	point_conversion_form_t point_form = SM2_DEFAULT_POINT_CONVERSION_FORM;
 
 	return SM2_decrypt_ex(kdf_md, mac_md, point_form,
-		in, inlen, out, outlen, ec_key);
+                              in, inlen, out, outlen, ec_key, 123);
 }

@@ -96,10 +96,10 @@ int SM2_compute_id_digest(const EVP_MD *md, unsigned char *dgst,
 
 
 typedef struct sm2_ciphertext_value_st {
-        EC_POINT *ephem_point;
-        unsigned char *ciphertext;
+        EC_POINT *ephem_point;  /* c1 */
+        unsigned char *ciphertext;  /* c2 */
         size_t ciphertext_size;
-        unsigned char mactag[EVP_MAX_MD_SIZE];
+        unsigned char mactag[EVP_MAX_MD_SIZE];  /* c3 */
         unsigned int mactag_size;
 } SM2_CIPHERTEXT_VALUE;
 
@@ -109,10 +109,11 @@ int SM2_CIPHERTEXT_VALUE_size(const EC_GROUP *ec_group,
 void SM2_CIPHERTEXT_VALUE_free(SM2_CIPHERTEXT_VALUE *cv);
 int SM2_CIPHERTEXT_VALUE_encode(const SM2_CIPHERTEXT_VALUE *cv,
         const EC_GROUP *ec_group, point_conversion_form_t point_form,
-        unsigned char *buf, size_t *buflen);
-SM2_CIPHERTEXT_VALUE *SM2_CIPHERTEXT_VALUE_decode(const EC_GROUP *ec_group,
-        point_conversion_form_t point_form, const EVP_MD *mac_md,
-        const unsigned char *buf, size_t buflen);
+                                unsigned char *buf, size_t *buflen, int seq);
+SM2_CIPHERTEXT_VALUE *SM2_CIPHERTEXT_VALUE_decode(
+    const EC_GROUP *ec_group,
+    point_conversion_form_t point_form, const EVP_MD *mac_md,
+    const unsigned char *buf, size_t buflen, int seq);
 int i2d_SM2_CIPHERTEXT_VALUE(const SM2_CIPHERTEXT_VALUE *c, unsigned char **out);
 SM2_CIPHERTEXT_VALUE *d2i_SM2_CIPHERTEXT_VALUE(SM2_CIPHERTEXT_VALUE **c,
         const unsigned char **in, long len);
@@ -129,11 +130,11 @@ int SM2_do_decrypt(const EVP_MD *kdf_md, const EVP_MD *mac_md,
 int SM2_encrypt_ex(const EVP_MD *kdf_md, const EVP_MD *mac_md,
         point_conversion_form_t point_form,
         const unsigned char *in, size_t inlen,
-        unsigned char *out, size_t *outlen, EC_KEY *ec_key);
+                   unsigned char *out, size_t *outlen, EC_KEY *ec_key, int seq);
 int SM2_decrypt_ex(const EVP_MD *kdf_md, const EVP_MD *mac_md,
         point_conversion_form_t point_form,
         const unsigned char *in, size_t inlen,
-        unsigned char *out, size_t *outlen, EC_KEY *ec_key);
+                   unsigned char *out, size_t *outlen, EC_KEY *ec_key, int seq);
 
 int SM2_encrypt(const unsigned char *in, size_t inlen,
         unsigned char *out, size_t *outlen, EC_KEY *ec_key);
